@@ -121,7 +121,13 @@ VALUES
 (3,'B','D','A','E'),
 (4,'A','E','D','C'),
 (5,'A','D','B','E'),
-(6,'B','C','C','D');
+(6,'B','C','C','D'),
+(7,'A','B','C','D'),
+(8,'B','C','D','E'),
+(9,'C','D','E','A'),
+(10,'D','E','A','B'),
+(11,'E','A','B','C'),
+(12,'A','A','E','B');
 --------------------------------------------------
 --------------------------------------------------
 
@@ -305,27 +311,181 @@ FROM
 LEFT JOIN divisions d 
 ON d.Id = wstg.division_id
 	
+-- а теперь тоже самое, но транспонировать и записать по столбцам уровни в лаборатории
+SELECT d.id, d.Title
+		, z_j.Stage_Count as "juniors"
+		, z_m.Stage_Count as "middles" 
+		, z_s.Stage_Count as "seniors" 
+		, z_l.Stage_Count as "leads" 
+FROM divisions d
+LEFT JOIN (SELECT division_id, Stage , COUNT(Stage) as Stage_Count FROM Workers GROUP BY division_id, stage HAVING Stage='junior') as z_j
+ON d.Id = z_j.division_id
+LEFT JOIN (SELECT division_id, Stage , COUNT(Stage) as Stage_Count FROM Workers GROUP BY division_id, stage HAVING Stage='middle') as z_m 
+ON d.Id = z_m.division_id
+LEFT JOIN (SELECT division_id, Stage , COUNT(Stage) as Stage_Count FROM Workers GROUP BY division_id, stage HAVING Stage='senior') as z_s 
+ON d.Id = z_s.division_id
+LEFT JOIN (SELECT division_id, Stage , COUNT(Stage) as Stage_Count FROM Workers GROUP BY division_id, stage HAVING Stage='lead') as z_l 
+ON d.Id = z_l.division_id
+
+-- объединяем с полученной ранее информацией об отделе => решение задачи до ix
+SELECT Title as "Отдел"
+	, d.head_name as "Руководитель Отдела"
+	, d.staff_count as "Штат, чел"
+	, w_exp as "Средний стаж, лет"
+	, w_zp as "Средняя З/п" 
+	, jmsl.juniors 
+	, jmsl.middls 
+	, jmsl.seniors 
+	, jmsl.leads
+FROM
+	(SELECT division_id --получаем средние значения по зарплате и по стажу 
+			,AVG ( 0.1*round(10* (current_date - Begint_Data)/365.0 ) ) as w_exp
+			,AVG ( salary ) as w_zp 
+	 FROM Workers
+	 GROUP BY division_id
+	) as zp_avg
+LEFT JOIN divisions d 
+ON d.id = zp_avg.division_id 
+LEFT JOIN  
+		(SELECT d.id  -- количество сотрудников по уровням: транспонируем группировку
+				, z_j.Stage_Count as "juniors"
+				, z_m.Stage_Count as "middls" 
+				, z_s.Stage_Count as "seniors" 
+				, z_l.Stage_Count as "leads" 
+		FROM divisions d
+		LEFT JOIN (SELECT division_id, Stage , COUNT(Stage) as Stage_Count FROM Workers GROUP BY division_id, stage HAVING Stage='junior') as z_j
+		ON d.Id = z_j.division_id
+		LEFT JOIN (SELECT division_id, Stage , COUNT(Stage) as Stage_Count FROM Workers GROUP BY division_id, stage HAVING Stage='middle') as z_m 
+		ON d.Id = z_m.division_id
+		LEFT JOIN (SELECT division_id, Stage , COUNT(Stage) as Stage_Count FROM Workers GROUP BY division_id, stage HAVING Stage='senior') as z_s 
+		ON d.Id = z_s.division_id
+		LEFT JOIN (SELECT division_id, Stage , COUNT(Stage) as Stage_Count FROM Workers GROUP BY division_id, stage HAVING Stage='lead') as z_l 
+		ON d.Id = z_l.division_id
+		) as jmsl
+ON d.Id = jmsl.Id;
+
+
+
 --x. Общий размер оплаты труда всех сотрудников до индексации
---SELECT Title, wfzp.Stage, wfzp.Salary_Sum, nw_wfzp.Salary_Sum 
---FROM
---	(SELECT division_id, stage, sum(salary) as Salary_Sum
---	 FROM workers w 
---	 GROUP BY division_id, stage
---	) AS wfzp
---   ,(SELECT division_id, stage, sum(salary) as Salary_Sum
---	 FROM Workers_Bonused nw 
---	 GROUP BY division_id, stage
---	) AS nw_wfzp
---LEFT JOIN divisions d 
---ON d.Id = wfzp.division_id 
---ORDER BY wfzp.division_id, wfzp.Stage
---
+--xi. Общий размер оплаты труда всех сотрудников после индексации
+-- простая группировка
+SELECT wfzp.division_id, wfzp.stage, wfzp.salary_sum as Salary, wb_wfzp.salary_sum as Salay_Indexed
+FROM
+   (SELECT division_id, stage, sum(salary) as Salary_Sum FROM workers w  GROUP BY division_id, stage ) AS wfzp
+LEFT JOIN
+   (SELECT division_id, stage, sum(salary) as Salary_Sum  FROM Workers_Bonused wb  GROUP BY division_id, stage ) AS wb_wfzp
+ON wfzp.division_id = wb_wfzp.division_id AND wfzp.stage = wb_wfzp.stage
 
 
+-- группировка в строчку
+SELECT d.id, z_j.Stage -- исходная суммарная зарплата сотрудников по уровням: транспонируем группировку
+		, z_j.Salary_Sum as "З/п juniors"
+		, z_m.Salary_Sum as "З/п middls" 
+		, z_s.Salary_Sum as "З/п seniors" 
+		, z_l.Salary_Sum as "З/п leads" 
+		, zb_j.Salary_Sum as "Индкс.З/п juniors"
+		, zb_m.Salary_Sum as "Индкс.З/п middls" 
+		, zb_s.Salary_Sum as "Индкс.З/п seniors" 
+		, zb_l.Salary_Sum as "Индкс.З/п leads" 
+FROM  divisions d    
+LEFT JOIN (SELECT division_id, stage, sum(salary) as Salary_Sum FROM workers w  GROUP BY division_id, stage  HAVING Stage='junior') as z_j
+ON d.id = z_j.division_id 
+LEFT JOIN (SELECT division_id, stage, sum(salary) as Salary_Sum FROM workers w  GROUP BY division_id, stage  HAVING Stage='middle') as z_m 
+ON d.id = z_m.division_id 
+LEFT JOIN (SELECT division_id, stage, sum(salary) as Salary_Sum FROM workers w  GROUP BY division_id, stage  HAVING Stage='senior') as z_s 
+ON d.id = z_s.division_id 
+LEFT JOIN (SELECT division_id, stage, sum(salary) as Salary_Sum FROM workers w  GROUP BY division_id, stage  HAVING Stage='lead') as z_l 
+ON d.id = z_l.division_id 
+LEFT JOIN (SELECT division_id, stage, sum(salary) as Salary_Sum FROM Workers_Bonused wb  GROUP BY division_id, stage  HAVING Stage='junior') as zb_j
+ON d.Id = zb_j.division_id
+LEFT JOIN (SELECT division_id, stage, sum(salary) as Salary_Sum FROM Workers_Bonused wb  GROUP BY division_id, stage  HAVING Stage='middle') as zb_m 
+ON d.Id = zb_m.division_id
+LEFT JOIN (SELECT division_id, stage, sum(salary) as Salary_Sum FROM Workers_Bonused wb  GROUP BY division_id, stage  HAVING Stage='senior') as zb_s 
+ON d.Id = zb_s.division_id
+LEFT JOIN (SELECT division_id, stage, sum(salary) as Salary_Sum FROM Workers_Bonused wb  GROUP BY division_id, stage  HAVING Stage='lead') as zb_l 
+ON d.Id = zb_l.division_id;
+		
 
 
+-- объединяем с полученной ранее информацией об отделе => решение задачи до x
+SELECT Title as "Отдел"
+	, d.head_name as "Руководитель Отдела"
+	, d.staff_count as "Штат, чел"
+	, w_exp as "Средний стаж, лет"
+	, w_zp as "Средняя З/п" 
+	, jmsl.juniors 
+	, jmsl.middls 
+	, jmsl.seniors 
+	, jmsl.leads
+	, zpt."З/п juniors"
+	, zpt."З/п middls" 
+	, zpt."З/п seniors" 
+	, zpt."З/п leads" 
+	, zpt."Индкс.З/п juniors"
+	, zpt."Индкс.З/п middls" 
+	, zpt."Индкс.З/п seniors" 
+	, zpt."Индкс.З/п leads"
+FROM
+	(SELECT division_id --получаем средние значения по зарплате и по стажу 
+			,AVG ( 0.1*round(10* (current_date - Begint_Data)/365.0 ) ) as w_exp
+			,AVG ( salary ) as w_zp 
+	 FROM Workers
+	 GROUP BY division_id
+	) as zp_avg
+LEFT JOIN divisions d 
+ON d.id = zp_avg.division_id 
+LEFT JOIN  
+		(SELECT d.id  -- количество сотрудников по уровням: транспонируем группировку
+				, z_j.Stage_Count as "juniors"
+				, z_m.Stage_Count as "middls" 
+				, z_s.Stage_Count as "seniors" 
+				, z_l.Stage_Count as "leads" 
+		FROM divisions d
+		LEFT JOIN (SELECT division_id, Stage , COUNT(Stage) as Stage_Count FROM Workers GROUP BY division_id, stage HAVING Stage='junior') as z_j
+		ON d.Id = z_j.division_id
+		LEFT JOIN (SELECT division_id, Stage , COUNT(Stage) as Stage_Count FROM Workers GROUP BY division_id, stage HAVING Stage='middle') as z_m 
+		ON d.Id = z_m.division_id
+		LEFT JOIN (SELECT division_id, Stage , COUNT(Stage) as Stage_Count FROM Workers GROUP BY division_id, stage HAVING Stage='senior') as z_s 
+		ON d.Id = z_s.division_id
+		LEFT JOIN (SELECT division_id, Stage , COUNT(Stage) as Stage_Count FROM Workers GROUP BY division_id, stage HAVING Stage='lead') as z_l 
+		ON d.Id = z_l.division_id
+		) as jmsl
+ON d.Id = jmsl.Id
+LEFT JOIN
+		(SELECT d.id, z_j.Stage -- исходная и индексированная суммарная зарплата сотрудников по уровням: транспонируем группировку
+				, z_j.Salary_Sum as "З/п juniors"
+				, z_m.Salary_Sum as "З/п middls" 
+				, z_s.Salary_Sum as "З/п seniors" 
+				, z_l.Salary_Sum as "З/п leads" 
+				, zb_j.Salary_Sum as "Индкс.З/п juniors"
+				, zb_m.Salary_Sum as "Индкс.З/п middls" 
+				, zb_s.Salary_Sum as "Индкс.З/п seniors" 
+				, zb_l.Salary_Sum as "Индкс.З/п leads" 
+		FROM  divisions d    
+		LEFT JOIN (SELECT division_id, stage, sum(salary) as Salary_Sum FROM workers w  GROUP BY division_id, stage  HAVING Stage='junior') as z_j
+		ON d.id = z_j.division_id 
+		LEFT JOIN (SELECT division_id, stage, sum(salary) as Salary_Sum FROM workers w  GROUP BY division_id, stage  HAVING Stage='middle') as z_m 
+		ON d.id = z_m.division_id 
+		LEFT JOIN (SELECT division_id, stage, sum(salary) as Salary_Sum FROM workers w  GROUP BY division_id, stage  HAVING Stage='senior') as z_s 
+		ON d.id = z_s.division_id 
+		LEFT JOIN (SELECT division_id, stage, sum(salary) as Salary_Sum FROM workers w  GROUP BY division_id, stage  HAVING Stage='lead') as z_l 
+		ON d.id = z_l.division_id 
+		LEFT JOIN (SELECT division_id, stage, sum(salary) as Salary_Sum FROM Workers_Bonused wb  GROUP BY division_id, stage  HAVING Stage='junior') as zb_j
+		ON d.Id = zb_j.division_id
+		LEFT JOIN (SELECT division_id, stage, sum(salary) as Salary_Sum FROM Workers_Bonused wb  GROUP BY division_id, stage  HAVING Stage='middle') as zb_m 
+		ON d.Id = zb_m.division_id
+		LEFT JOIN (SELECT division_id, stage, sum(salary) as Salary_Sum FROM Workers_Bonused wb  GROUP BY division_id, stage  HAVING Stage='senior') as zb_s 
+		ON d.Id = zb_s.division_id
+		LEFT JOIN (SELECT division_id, stage, sum(salary) as Salary_Sum FROM Workers_Bonused wb  GROUP BY division_id, stage  HAVING Stage='lead') as zb_l 
+		ON d.Id = zb_l.division_id) AS zpt
+ON d.Id = zpt.Id;
 
 
+--xii. Общее количество оценок А
+--xiii. Общее количество оценок B
+--xiv. Общее количество оценок C
+--xv. Общее количество оценок D
+--xvi. Общее количество оценок Е
 
 
 
