@@ -94,11 +94,11 @@ INSERT INTO Workers (
 	Drive_License
 )
 VALUES 
-	('Иван Иванович Иванов', '2022-02-24', 'м.н.с.', 'junior', 30000, 1, TRUE),
-	('Марина Петровна Петрова', '2021-01-01', 'н.с.', 'middle', 40000, 2, FALSE),
-	('Василий Васильевич Васильев', '1995-10-20', 'в.н.с.', 'lead', 70000, 3, TRUE),
-    ('Михаил Джекович Блэк', '2022-03-04', 'м.н.с.', 'junior', 30000, 1, TRUE),
-	('Сергей Борисович Звездюлёв', '2019-12-30', 'г.н.с.', 'lead', 40000, 2, TRUE),
+	('Иван Иванович Иванов', '2022-02-24', 'м.н.с.', 'junior', 30001, 1, TRUE),
+	('Марина Петровна Петрова', '2021-01-01', 'н.с.', 'middle', 40010, 2, FALSE),
+	('Василий Васильевич Васильев', '1995-10-20', 'в.н.с.', 'lead', 70010, 3, TRUE),
+    ('Михаил Джекович Блэк', '2022-03-04', 'м.н.с.', 'junior', 30010, 1, TRUE),
+	('Сергей Борисович Звездюлёв', '2019-12-30', 'г.н.с.', 'lead', 40001, 2, TRUE),
 	('Марьяна Ибрагимовна Минскер', '2020-06-15', 'в.н.с.', 'middle', 70001, 3, TRUE);
 
 INSERT INTO Rating(
@@ -125,17 +125,38 @@ VALUES
 --a.     Попробуйте вывести не просто самую высокую зарплату во всей команде, 
 --а вывести именно фамилию сотрудника с самой высокой зарплатой.
 
-SELECT FIO as "Сотрудник с максимальной зарплатой", Salary as "Зарплата" 
+SELECT FIO as "Сотрудник с самой высокой З/п", Salary as "З/п" 
 FROM Workers w 
 WHERE w.salary = (SELECT max(salary) FROM Workers);
 
+--b. Попробуйте вывести фамилии сотрудников в алфавитном порядке
+SELECT FIO as "Сотрудник"
+FROM Workers w 
+ORDER BY FIO;
+
+--c. Рассчитайте средний стаж для каждого уровня сотрудников
+SELECT Stage as "Уровень"
+		,AVG ( 0.1*round(10* (current_date - Begint_Data)/365.0 ) ) as "Стаж, лет"
+--		,AVG(*) as "Средний стаж, лет"
+FROM Workers
+GROUP BY Stage; 
 
 
+--d. Выведите фамилию сотрудника и название отдела, в котором он работает
+SELECT FIO as "Сотрудник", d.title as "Отдел"
+FROM workers w, divisions d  
+WHERE w.division_id = d.id ;
 
 
-
-
-
+--e. Выведите название отдела и фамилию сотрудника с самой высокой зарплатой в данном отделе и саму зарплату также.
+SELECT s.Title as "Отдел" , FIO as "Сотрудник c самой высокоф З/п", s.avgzpt as "З/п" 
+FROM Workers w,
+			(SELECT d.id, d.Title, max(w.Salary) as avgzpt
+			FROM Workers w, divisions d 
+			WHERE w.division_id = d.id
+			GROUP BY d.id, d.Title) as s
+WHERE w.Division_id=s.Id AND w.Salary = s.avgzpt  
+ORDER BY w.division_id;  
 
 
 
