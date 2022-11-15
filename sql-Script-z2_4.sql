@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS Divisions(
 --  наличие/отсутствие прав(True/False). 
 --  При этом в таблице обязательно должен быть уникальный номер для каждого сотрудника.
 
-DROP TYPE IF EXISTS Stage_Type;
+DROP TYPE IF EXISTS Stage_Type ;
 CREATE TYPE Stage_Type AS ENUM ('junior', 'middle', 'senior', 'lead');
 
 CREATE TABLE IF NOT EXISTS Workers
@@ -80,9 +80,9 @@ INSERT INTO Divisions(
 	Staff_Count 
 )
 VALUES
-('лаб.№21', 'Иван Иванович Иванов', 2),
-('лаб.№23', 'Василий Васильевич Васильев', 2),
-('лаб.№27', 'Сергей Борисович Звездюлёв', 2);
+('лаб.№21', 'Иван Иванович Иванов', 4),
+('лаб.№23', 'Василий Васильевич Васильев', 4),
+('лаб.№27', 'Сергей Борисович Звездюлёв', 4);
 
 INSERT INTO Workers (
 	FIO,
@@ -99,7 +99,14 @@ VALUES
 	('Василий Васильевич Васильев', '1995-10-20', 'в.н.с.', 'lead', 70010, 3, TRUE),
     ('Михаил Джекович Блэк', '2022-03-04', 'м.н.с.', 'junior', 30010, 1, TRUE),
 	('Сергей Борисович Звездюлёв', '2019-12-30', 'г.н.с.', 'lead', 40001, 2, TRUE),
-	('Марьяна Ибрагимовна Минскер', '2020-06-15', 'в.н.с.', 'middle', 70001, 3, TRUE);
+	('Марьяна Ибрагимовна Минскер', '2020-06-15', 'в.н.с.', 'middle', 70001, 3, TRUE),
+	('Семен Семенович Семенченко', '2018-01-05', 'н.с.', 'middle', 35001, 1, TRUE),
+	('Дмитрий Анатольевич Медвечук', '2017-06-21', 'в.н.с.', 'lead', 45010, 2, TRUE),
+	('Григорий Григорьевич Гюго', '2001-04-21', 'инженер', 'senior', 75010, 3, TRUE),
+    ('Ева Евгеньевна Еланская', '2008-08-08', 'секретарь', 'junior', 33010, 1, TRUE),
+	('Анжелика Николаевна Шац', '2016-11-15', 'лаборант', 'middle', 46001, 2, FALSE),
+	('Софья Святославовна Трампидзе', '2001-07-30', 'ассистент', 'junior', 29001, 3, TRUE);
+
 
 INSERT INTO Rating(
 	Worker_Id ,
@@ -282,11 +289,37 @@ FROM
 LEFT JOIN divisions d 
 ON d.id = zp_avg.division_id ;
 
-
-
-
-
-
+--vi. Количество сотрудников уровня junior
+--vii. Количество сотрудников уровня middle
+--viii. Количество сотрудников уровня senior
+--ix. Количество сотрудников уровня lead
+SELECT Title as "Отдел", wstg.Stage as "Уровень", wstg.Stage_Count as "Количество сотрудников" 
+FROM  
+	(	SELECT division_id
+			, Stage 
+			, COUNT(Stage) as Stage_Count 
+		FROM Workers
+		GROUP BY division_id, stage 
+		ORDER BY division_id , stage
+	) AS wstg
+LEFT JOIN divisions d 
+ON d.Id = wstg.division_id
+	
+--x. Общий размер оплаты труда всех сотрудников до индексации
+--SELECT Title, wfzp.Stage, wfzp.Salary_Sum, nw_wfzp.Salary_Sum 
+--FROM
+--	(SELECT division_id, stage, sum(salary) as Salary_Sum
+--	 FROM workers w 
+--	 GROUP BY division_id, stage
+--	) AS wfzp
+--   ,(SELECT division_id, stage, sum(salary) as Salary_Sum
+--	 FROM Workers_Bonused nw 
+--	 GROUP BY division_id, stage
+--	) AS nw_wfzp
+--LEFT JOIN divisions d 
+--ON d.Id = wfzp.division_id 
+--ORDER BY wfzp.division_id, wfzp.Stage
+--
 
 
 
