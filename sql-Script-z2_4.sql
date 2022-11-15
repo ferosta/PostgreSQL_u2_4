@@ -240,19 +240,14 @@ ORDER BY division_id;
 
 -- вариант с фомрированием новой таблицы
 DROP TABLE IF EXISTS Workers_Bonused;
-SELECT 	 FIO
-		,Begint_Data
-		,Post
-		,Stage
+SELECT 	 w.Id, FIO ,Begint_Data ,Post	,Stage
 		,CASE 
 			 WHEN rk.koef > 1.2 THEN Salary*1.2
 			 WHEN rk.koef <= 1.2 AND rk.koef >= 1.0 THEN Salary*1.1
 			 ELSE Salary*1.0
 		 END as "salary"
-		,Division_Id
-		,Drive_License 
---		, rk.koef 	
-INTO Workers_Bonused 	
+		,Division_Id ,Drive_License 
+INTO Workers_Bonused -- чудесная опция для формирования новой таблицы с результатами этого запроса	
 FROM Workers w 
 	,(SELECT Id  -- вычисляем бонусный коэффициент нестандартным способом
 		,0.1*(-ASCII(CAST(r.Q1 AS char(1)))+67)
@@ -263,6 +258,56 @@ FROM Workers w
 	 as rk 
 WHERE w.Id = rk.Id  
 ORDER BY division_id;
+
+
+--h. ***По итогам индексации отдел финансов хочет получить следующий отчет: 
+--вам необходимо на уровень каждого отдела вывести следующую информацию:
+--i. Название отдела
+--ii. Фамилию руководителя
+--iii. Количество сотрудников
+--iv. Средний стаж
+--v. Средний уровень зарплаты
+SELECT Title as "Отдел"
+	, d.head_name as "Руководитель Отдела"
+	, d.staff_count as "Количество сотрудников"
+	, w_exp as "Средний стаж в отделе, лет"
+	, w_zp as "Средняя З/п в отделе" 
+FROM
+	(SELECT division_id --получаем средние значения по зарплате и по стажу 
+			,AVG ( 0.1*round(10* (current_date - Begint_Data)/365.0 ) ) as w_exp
+			,AVG ( salary ) as w_zp 
+	 FROM Workers
+	 GROUP BY division_id
+	) as zp_avg
+LEFT JOIN divisions d 
+ON d.id = zp_avg.division_id ;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
