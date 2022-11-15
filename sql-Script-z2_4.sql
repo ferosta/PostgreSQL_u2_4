@@ -212,12 +212,57 @@ ORDER BY "Суммарная премия" DESC
 LIMIT 1;
 
 
+--g. *Проиндексируйте зарплаты сотрудников с учетом коэффициента премии. 
+--Для сотрудников с коэффициентом премии больше 1.2 – размер индексации составит 20%, 
+--для сотрудников с коэффициентом премии от 1 до 1.2 размер индексации составит 10%. 
+--Для всех остальных сотрудников индексация не предусмотрена.
+
+-- таблица с фамилиями и премиями
+SELECT division_id, FIO as "Сотрудник"
+		, Salary as "З/п"
+		, rk.koef as "Бонусный коэфф."
+		, CASE 
+			 WHEN rk.koef > 1.2 THEN Salary*1.2
+			 WHEN rk.koef <= 1.2 AND rk.koef >= 1.0 THEN Salary*1.1
+			 ELSE Salary*1.0
+ 		  END as "З/п с индексацией"
+FROM Workers w 
+	,(SELECT Id  -- вычисляем бонусный коэффициент
+		,0.1*(-ASCII(CAST(r.Q1 AS char(1)))+67)
+		+0.1*(-ASCII(CAST(r.Q2 AS char(1)))+67)
+		+0.1*(-ASCII(CAST(r.Q3 AS char(1)))+67)
+		+0.1*(-ASCII(CAST(r.Q4 AS char(1)))+67) + 1  AS koef
+	  FROM Rating r) 
+	 as rk 
+WHERE w.Id = rk.Id  
+ORDER BY division_id;
 
 
-
-
-
-
+-- вариант с фомрированием новой таблицы
+DROP TABLE IF EXISTS Workers_Bonused;
+SELECT 	 FIO
+		,Begint_Data
+		,Post
+		,Stage
+		,CASE 
+			 WHEN rk.koef > 1.2 THEN Salary*1.2
+			 WHEN rk.koef <= 1.2 AND rk.koef >= 1.0 THEN Salary*1.1
+			 ELSE Salary*1.0
+		 END as "salary"
+		,Division_Id
+		,Drive_License 
+--		, rk.koef 	
+INTO Workers_Bonused 	
+FROM Workers w 
+	,(SELECT Id  -- вычисляем бонусный коэффициент нестандартным способом
+		,0.1*(-ASCII(CAST(r.Q1 AS char(1)))+67)
+		+0.1*(-ASCII(CAST(r.Q2 AS char(1)))+67)
+		+0.1*(-ASCII(CAST(r.Q3 AS char(1)))+67)
+		+0.1*(-ASCII(CAST(r.Q4 AS char(1)))+67) + 1  AS koef
+	  FROM Rating r) 
+	 as rk 
+WHERE w.Id = rk.Id  
+ORDER BY division_id;
 
 
 
