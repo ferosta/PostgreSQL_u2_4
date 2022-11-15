@@ -80,8 +80,8 @@ INSERT INTO Divisions(
 	Staff_Count 
 )
 VALUES
-('лаб.№23', 'Иван Иванович Иванов', 2),
-('лаб.№21', 'Василий Васильевич Васильев', 2),
+('лаб.№21', 'Иван Иванович Иванов', 2),
+('лаб.№23', 'Василий Васильевич Васильев', 2),
 ('лаб.№27', 'Сергей Борисович Звездюлёв', 2);
 
 INSERT INTO Workers (
@@ -159,10 +159,57 @@ WHERE w.Division_id=s.Id AND w.Salary = s.avgzpt
 ORDER BY w.division_id;  
 
 
+--f. *Выведите название отдела, сотрудники которого получат наибольшую премию по итогам года. 
+--Как рассчитать премию можно узнать в последнем задании предыдущей домашней работы
+
+---- расчет бонусного коэффициента
+--SELECT *  
+--		,0.1*(-ASCII(CAST(r.Q1 AS char(1)))+67)
+--		,0.1*(-ASCII(CAST(r.Q2 AS char(1)))+67)
+--		,0.1*(-ASCII(CAST(r.Q3 AS char(1)))+67)
+--		,0.1*(-ASCII(CAST(r.Q4 AS char(1)))+67)
+--		,0.1*(-ASCII(CAST(r.Q1 AS char(1)))+67)
+--		+0.1*(-ASCII(CAST(r.Q2 AS char(1)))+67)
+--		+0.1*(-ASCII(CAST(r.Q3 AS char(1)))+67)
+--		+0.1*(-ASCII(CAST(r.Q4 AS char(1)))+67) + 1  AS "Коэффициент"
+--FROM Rating r;
+
+-- таблица с фамилиями и премиями
+--SELECT division_id, FIO as "Сотрудник"
+--		, Salary as "З/п"
+--		, rk.koef as "Бонусный коэффициент"
+--		, Salary * (rk.koef-1) as "Премия"
+--		, Salary * rk.koef as "З/п с премией"
+--FROM Workers w 
+--		,(SELECT Id  
+--			,0.1*(-ASCII(CAST(r.Q1 AS char(1)))+67)
+--			+0.1*(-ASCII(CAST(r.Q2 AS char(1)))+67)
+--			+0.1*(-ASCII(CAST(r.Q3 AS char(1)))+67)
+--			+0.1*(-ASCII(CAST(r.Q4 AS char(1)))+67) + 1  AS koef
+--		FROM Rating r) as rk 
+--WHERE w.Id = rk.Id  
+--ORDER BY division_id;
 
 
-
-
+-- решение: отдел с сотрудниками с максимальным бонусом
+SELECT Divisions.Title as "Отдел с наибольшей преимей"--"Отдел"
+	   --, "Суммарная премия" 
+FROM 
+	(SELECT  Division_id 
+			, sum( Salary * (rk.koef-1) ) as "Суммарная премия"
+	 FROM Workers w  
+			,(SELECT Id  
+				,0.1*(-ASCII(CAST(r.Q1 AS char(1)))+67)
+				+0.1*(-ASCII(CAST(r.Q2 AS char(1)))+67)
+				+0.1*(-ASCII(CAST(r.Q3 AS char(1)))+67)
+				+0.1*(-ASCII(CAST(r.Q4 AS char(1)))+67) + 1  AS koef
+			  FROM Rating r) as rk 
+	 WHERE w.Id = rk.Id  
+	 GROUP BY division_id) as wks  
+LEFT JOIN Divisions
+ON wks.Division_id = Divisions.Id 
+ORDER BY "Суммарная премия" DESC
+LIMIT 1;
 
 
 
