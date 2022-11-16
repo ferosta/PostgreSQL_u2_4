@@ -309,7 +309,7 @@ FROM
 		ORDER BY division_id , stage
 	) AS wstg
 LEFT JOIN divisions d 
-ON d.Id = wstg.division_id
+ON d.Id = wstg.division_id;
 	
 -- а теперь тоже самое, но транспонировать и записать по столбцам уровни в лаборатории
 SELECT d.id, d.Title
@@ -325,7 +325,7 @@ ON d.Id = z_m.division_id
 LEFT JOIN (SELECT division_id, Stage , COUNT(Stage) as Stage_Count FROM Workers GROUP BY division_id, stage HAVING Stage='senior') as z_s 
 ON d.Id = z_s.division_id
 LEFT JOIN (SELECT division_id, Stage , COUNT(Stage) as Stage_Count FROM Workers GROUP BY division_id, stage HAVING Stage='lead') as z_l 
-ON d.Id = z_l.division_id
+ON d.Id = z_l.division_id;
 
 -- объединяем с полученной ранее информацией об отделе => решение задачи до ix
 SELECT Title as "Отдел"
@@ -368,13 +368,14 @@ ON d.Id = jmsl.Id;
 
 --x. Общий размер оплаты труда всех сотрудников до индексации
 --xi. Общий размер оплаты труда всех сотрудников после индексации
--- простая группировка
+
+-- простая группировка (эх, надо было по уровням не фасовать - проще бы получилось)
 SELECT wfzp.division_id, wfzp.stage, wfzp.salary_sum as Salary, wb_wfzp.salary_sum as Salay_Indexed
 FROM
    (SELECT division_id, stage, sum(salary) as Salary_Sum FROM workers w  GROUP BY division_id, stage ) AS wfzp
 LEFT JOIN
    (SELECT division_id, stage, sum(salary) as Salary_Sum  FROM Workers_Bonused wb  GROUP BY division_id, stage ) AS wb_wfzp
-ON wfzp.division_id = wb_wfzp.division_id AND wfzp.stage = wb_wfzp.stage
+ON wfzp.division_id = wb_wfzp.division_id AND wfzp.stage = wb_wfzp.stage;
 
 
 -- группировка в строчку
@@ -487,11 +488,165 @@ ON d.Id = zpt.Id;
 --xv. Общее количество оценок D
 --xvi. Общее количество оценок Е
 
+-- для контроля выводим таблицу с оценками
+SELECT w.division_id , r.* FROM rating r, workers w WHERE w.id = r.worker_id
+order by w.division_id;
+
+WITH 
+  Divisioned_Rating AS (SELECT w.division_id , r.* FROM rating r, workers w WHERE w.id = r.worker_id) -- приписываем к рейтингам номер отдела
+, Z_Q1 AS (SELECT division_id, q1, count(*) AS c_q FROM Divisioned_Rating GROUP BY division_id, q1) -- группировка по q1
+, Z_Q2 AS (SELECT division_id, q2, count(*) AS c_q FROM Divisioned_Rating GROUP BY division_id, q2) -- группировка по q2
+, Z_Q3 AS (SELECT division_id, q3, count(*) AS c_q FROM Divisioned_Rating GROUP BY division_id, q3) -- группировка по q3
+, Z_Q4 AS (SELECT division_id, q4, count(*) AS c_q FROM Divisioned_Rating GROUP BY division_id, q4) -- группировка по q4
+SELECT d.id 
+		, COALESCE(qq1_a.c_q,0)+COALESCE(qq2_a.c_q,0)+COALESCE(qq3_a.c_q,0)+COALESCE(qq4_a.c_q,0) AS "Оценок 'A'"
+		, COALESCE(qq1_b.c_q,0)+COALESCE(qq2_b.c_q,0)+COALESCE(qq3_b.c_q,0)+COALESCE(qq4_b.c_q,0) AS "Оценок 'B'"
+		, COALESCE(qq1_c.c_q,0)+COALESCE(qq2_c.c_q,0)+COALESCE(qq3_c.c_q,0)+COALESCE(qq4_c.c_q,0) AS "Оценок 'C'"
+		, COALESCE(qq1_d.c_q,0)+COALESCE(qq2_d.c_q,0)+COALESCE(qq3_d.c_q,0)+COALESCE(qq4_d.c_q,0) AS "Оценок 'D'"
+		, COALESCE(qq1_e.c_q,0)+COALESCE(qq2_e.c_q,0)+COALESCE(qq3_e.c_q,0)+COALESCE(qq4_e.c_q,0) AS "Оценок 'E'"
+FROM Divisions d 
+LEFT JOIN (SELECT * FROM Z_Q1 WHERE q1 = 'A') as qq1_a ON id = qq1_a.division_id
+LEFT JOIN (SELECT * FROM Z_Q1 WHERE q1 = 'B') as qq1_b ON id = qq1_b.division_id
+LEFT JOIN (SELECT * FROM Z_Q1 WHERE q1 = 'C') as qq1_c ON id = qq1_c.division_id
+LEFT JOIN (SELECT * FROM Z_Q1 WHERE q1 = 'D') as qq1_d ON id = qq1_d.division_id
+LEFT JOIN (SELECT * FROM Z_Q1 WHERE q1 = 'E') as qq1_e ON id = qq1_e.division_id
+LEFT JOIN (SELECT * FROM Z_Q2 WHERE q2 = 'A') as qq2_a ON id = qq2_a.division_id
+LEFT JOIN (SELECT * FROM Z_Q2 WHERE q2 = 'B') as qq2_b ON id = qq2_b.division_id
+LEFT JOIN (SELECT * FROM Z_Q2 WHERE q2 = 'C') as qq2_c ON id = qq2_c.division_id
+LEFT JOIN (SELECT * FROM Z_Q2 WHERE q2 = 'D') as qq2_d ON id = qq2_d.division_id
+LEFT JOIN (SELECT * FROM Z_Q2 WHERE q2 = 'E') as qq2_e ON id = qq2_e.division_id
+LEFT JOIN (SELECT * FROM Z_Q3 WHERE q3 = 'A') as qq3_a ON id = qq3_a.division_id
+LEFT JOIN (SELECT * FROM Z_Q3 WHERE q3 = 'B') as qq3_b ON id = qq3_b.division_id
+LEFT JOIN (SELECT * FROM Z_Q3 WHERE q3 = 'C') as qq3_c ON id = qq3_c.division_id
+LEFT JOIN (SELECT * FROM Z_Q3 WHERE q3 = 'D') as qq3_d ON id = qq3_d.division_id
+LEFT JOIN (SELECT * FROM Z_Q3 WHERE q3 = 'E') as qq3_e ON id = qq3_e.division_id
+LEFT JOIN (SELECT * FROM Z_Q4 WHERE q4 = 'A') as qq4_a ON id = qq4_a.division_id
+LEFT JOIN (SELECT * FROM Z_Q4 WHERE q4 = 'B') as qq4_b ON id = qq4_b.division_id
+LEFT JOIN (SELECT * FROM Z_Q4 WHERE q4 = 'C') as qq4_c ON id = qq4_c.division_id
+LEFT JOIN (SELECT * FROM Z_Q4 WHERE q4 = 'D') as qq4_d ON id = qq4_d.division_id
+LEFT JOIN (SELECT * FROM Z_Q4 WHERE q4 = 'E') as qq4_e ON id = qq4_e.division_id
+ORDER BY d.id;
 
 
 
 
+-- объединяем с полученной ранее информацией об отделе => решение задачи до xvi
+--- плюс оптимизация с использованием подзапросов
+--- минус расфасовка суммарных зарплат по уровням (вроде такой задачи не стояло, а как-то само собой получилось)
 
+WITH 
+Div_Stg_Cnt AS (SELECT division_id, Stage , COUNT(Stage) as Stage_Count FROM Workers GROUP BY division_id, stage) -- количество работников каждого уровня
+, Div_Stg_Sum_Slr_0 AS (SELECT division_id, sum(salary) as Salary_Sum FROM workers w  GROUP BY division_id) -- суммарные зарплаты до индексации
+, Div_Stg_Sum_Slr_Wb_0 AS (SELECT division_id, sum(salary) as Salary_Sum FROM Workers_Bonused wb  GROUP BY division_id) -- суммарные з/п после индексации
+, Div_Stg_Sum_Slr AS (SELECT division_id, stage, sum(salary) as Salary_Sum FROM workers w  GROUP BY division_id, stage) -- суммарные з/п по уровням
+, Div_Stg_Sum_Slr_Wb AS (SELECT division_id, stage, sum(salary) as Salary_Sum FROM Workers_Bonused wb  GROUP BY division_id, stage) -- сумм з\п по уровням с индексацией
+, Divisioned_Rating AS (SELECT w.division_id , r.* FROM rating r, workers w WHERE w.id = r.worker_id) -- приписываем к рейтингам номер отдела
+, Z_Q1 AS (SELECT division_id, q1, count(*) AS c_q FROM Divisioned_Rating GROUP BY division_id, q1) -- группировка по q1
+, Z_Q2 AS (SELECT division_id, q2, count(*) AS c_q FROM Divisioned_Rating GROUP BY division_id, q2) -- группировка по q2
+, Z_Q3 AS (SELECT division_id, q3, count(*) AS c_q FROM Divisioned_Rating GROUP BY division_id, q3) -- группировка по q3
+, Z_Q4 AS (SELECT division_id, q4, count(*) AS c_q FROM Divisioned_Rating GROUP BY division_id, q4) -- группировка по q4
+SELECT Title as "Отдел"
+	, d.head_name as "Руководитель Отдела"
+	, d.staff_count as "Штат, чел"
+	, w_exp as "Средний стаж, лет"
+	, w_zp as "Средняя З/п" 
+	, jmsl.juniors 
+	, jmsl.middls 
+	, jmsl.seniors 
+	, jmsl.leads
+	, zpt."З/п сумма"
+	, zpt."Индкс.З/п сумма"
+--	, zpt."З/п juniors"
+--	, zpt."З/п middls" 
+--	, zpt."З/п seniors" 
+--	, zpt."З/п leads" 
+--	, zpt."Индкс.З/п juniors"
+--	, zpt."Индкс.З/п middls" 
+--	, zpt."Индкс.З/п seniors" 
+--	, zpt."Индкс.З/п leads"
+	, zq."Оценок 'A'"
+	, zq."Оценок 'B'"
+	, zq."Оценок 'C'"
+	, zq."Оценок 'D'"
+	, zq."Оценок 'E'"
+FROM
+	(SELECT division_id --получаем средние значения по зарплате и по стажу 
+			,AVG ( 0.1*round(10* (current_date - Begint_Data)/365.0 ) ) as w_exp
+			,AVG ( salary ) as w_zp 
+	 FROM Workers
+	 GROUP BY division_id
+	) as zp_avg
+LEFT JOIN divisions d 
+ON d.id = zp_avg.division_id 
+LEFT JOIN  
+		(SELECT d.id  -- количество сотрудников по уровням: транспонируем группировку
+				, z_j.Stage_Count as "juniors"
+				, z_m.Stage_Count as "middls" 
+				, z_s.Stage_Count as "seniors" 
+				, z_l.Stage_Count as "leads" 
+		FROM divisions d
+		LEFT JOIN (SELECT * FROM Div_Stg_Cnt WHERE Stage='junior') as z_j ON d.Id = z_j.division_id
+		LEFT JOIN (SELECT * FROM Div_Stg_Cnt WHERE Stage='middle') as z_m ON d.Id = z_m.division_id
+		LEFT JOIN (SELECT * FROM Div_Stg_Cnt WHERE Stage='senior') as z_s ON d.Id = z_s.division_id
+		LEFT JOIN (SELECT * FROM Div_Stg_Cnt WHERE Stage='lead')   as z_l ON d.Id = z_l.division_id
+		) as jmsl
+ON d.Id = jmsl.Id
+LEFT JOIN
+		(SELECT d.id -- исходная и индексированная суммарная зарплата сотрудников по уровням: транспонируем группировку
+				, z_all.Salary_Sum as "З/п сумма"
+				, zb_all.Salary_Sum as "Индкс.З/п сумма"
+--				, z_j.Stage
+--				, z_j.Salary_Sum as "З/п juniors"
+--				, z_m.Salary_Sum as "З/п middls" 
+--				, z_s.Salary_Sum as "З/п seniors" 
+--				, z_l.Salary_Sum as "З/п leads" 
+--				, zb_j.Salary_Sum as "Индкс.З/п juniors"
+--				, zb_m.Salary_Sum as "Индкс.З/п middls" 
+--				, zb_s.Salary_Sum as "Индкс.З/п seniors" 
+--				, zb_l.Salary_Sum as "Индкс.З/п leads" 
+		FROM  divisions d    
+		LEFT JOIN (SELECT * FROM Div_Stg_Sum_Slr_0 ) as z_all 	ON d.id = z_all.division_id  --суммарная зарплата до индексирования
+		LEFT JOIN (SELECT * FROM Div_Stg_Sum_Slr_Wb_0 ) as zb_all 	ON d.id = zb_all.division_id  --суммарная зарплата после индекасирования
+--		LEFT JOIN (SELECT * FROM Div_Stg_Sum_Slr WHERE Stage='junior') as z_j 	ON d.id = z_j.division_id -- расфасовка суммарных зарплат по уровням
+--		LEFT JOIN (SELECT * FROM Div_Stg_Sum_Slr WHERE Stage='middle') as z_m 	ON d.id = z_m.division_id 
+--		LEFT JOIN (SELECT * FROM Div_Stg_Sum_Slr WHERE Stage='senior') as z_s 	ON d.id = z_s.division_id 
+--		LEFT JOIN (SELECT * FROM Div_Stg_Sum_Slr WHERE Stage='lead')   as z_l 	ON d.id = z_l.division_id 
+--		LEFT JOIN (SELECT * FROM Div_Stg_Sum_Slr_Wb WHERE Stage='junior') as zb_j	ON d.Id = zb_j.division_id
+--		LEFT JOIN (SELECT * FROM Div_Stg_Sum_Slr_Wb WHERE Stage='middle') as zb_m 	ON d.Id = zb_m.division_id
+--		LEFT JOIN (SELECT * FROM Div_Stg_Sum_Slr_Wb WHERE Stage='senior') as zb_s 	ON d.Id = zb_s.division_id
+--		LEFT JOIN (SELECT * FROM Div_Stg_Sum_Slr_Wb WHERE Stage='lead')   as zb_l 	ON d.Id = zb_l.division_id
+		) AS zpt
+ON d.Id = zpt.Id
+LEFT JOIN -- количество оценок
+		(SELECT d.id 
+				, COALESCE(qq1_a.c_q,0)+COALESCE(qq2_a.c_q,0)+COALESCE(qq3_a.c_q,0)+COALESCE(qq4_a.c_q,0) AS "Оценок 'A'"
+				, COALESCE(qq1_b.c_q,0)+COALESCE(qq2_b.c_q,0)+COALESCE(qq3_b.c_q,0)+COALESCE(qq4_b.c_q,0) AS "Оценок 'B'"
+				, COALESCE(qq1_c.c_q,0)+COALESCE(qq2_c.c_q,0)+COALESCE(qq3_c.c_q,0)+COALESCE(qq4_c.c_q,0) AS "Оценок 'C'"
+				, COALESCE(qq1_d.c_q,0)+COALESCE(qq2_d.c_q,0)+COALESCE(qq3_d.c_q,0)+COALESCE(qq4_d.c_q,0) AS "Оценок 'D'"
+				, COALESCE(qq1_e.c_q,0)+COALESCE(qq2_e.c_q,0)+COALESCE(qq3_e.c_q,0)+COALESCE(qq4_e.c_q,0) AS "Оценок 'E'"
+		FROM Divisions d 
+		LEFT JOIN (SELECT * FROM Z_Q1 WHERE q1 = 'A') as qq1_a ON id = qq1_a.division_id
+		LEFT JOIN (SELECT * FROM Z_Q1 WHERE q1 = 'B') as qq1_b ON id = qq1_b.division_id
+		LEFT JOIN (SELECT * FROM Z_Q1 WHERE q1 = 'C') as qq1_c ON id = qq1_c.division_id
+		LEFT JOIN (SELECT * FROM Z_Q1 WHERE q1 = 'D') as qq1_d ON id = qq1_d.division_id
+		LEFT JOIN (SELECT * FROM Z_Q1 WHERE q1 = 'E') as qq1_e ON id = qq1_e.division_id
+		LEFT JOIN (SELECT * FROM Z_Q2 WHERE q2 = 'A') as qq2_a ON id = qq2_a.division_id
+		LEFT JOIN (SELECT * FROM Z_Q2 WHERE q2 = 'B') as qq2_b ON id = qq2_b.division_id
+		LEFT JOIN (SELECT * FROM Z_Q2 WHERE q2 = 'C') as qq2_c ON id = qq2_c.division_id
+		LEFT JOIN (SELECT * FROM Z_Q2 WHERE q2 = 'D') as qq2_d ON id = qq2_d.division_id
+		LEFT JOIN (SELECT * FROM Z_Q2 WHERE q2 = 'E') as qq2_e ON id = qq2_e.division_id
+		LEFT JOIN (SELECT * FROM Z_Q3 WHERE q3 = 'A') as qq3_a ON id = qq3_a.division_id
+		LEFT JOIN (SELECT * FROM Z_Q3 WHERE q3 = 'B') as qq3_b ON id = qq3_b.division_id
+		LEFT JOIN (SELECT * FROM Z_Q3 WHERE q3 = 'C') as qq3_c ON id = qq3_c.division_id
+		LEFT JOIN (SELECT * FROM Z_Q3 WHERE q3 = 'D') as qq3_d ON id = qq3_d.division_id
+		LEFT JOIN (SELECT * FROM Z_Q3 WHERE q3 = 'E') as qq3_e ON id = qq3_e.division_id
+		LEFT JOIN (SELECT * FROM Z_Q4 WHERE q4 = 'A') as qq4_a ON id = qq4_a.division_id
+		LEFT JOIN (SELECT * FROM Z_Q4 WHERE q4 = 'B') as qq4_b ON id = qq4_b.division_id
+		LEFT JOIN (SELECT * FROM Z_Q4 WHERE q4 = 'C') as qq4_c ON id = qq4_c.division_id
+		LEFT JOIN (SELECT * FROM Z_Q4 WHERE q4 = 'D') as qq4_d ON id = qq4_d.division_id
+		LEFT JOIN (SELECT * FROM Z_Q4 WHERE q4 = 'E') as qq4_e ON id = qq4_e.division_id
+		) AS zq
+ON d.Id = zq.Id;
 
 
 
