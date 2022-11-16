@@ -650,7 +650,40 @@ ON d.Id = zq.Id;
 
 
 
+--xvii. Средний показатель коэффициента премии
+--xviii. Общий размер премии.
+--xix. Общую сумму зарплат(+ премии) до индексации
+--xx. Общую сумму зарплат(+ премии) после индексации(премии не индексируются)
+WITH
+Premiya AS (SELECT Id  
+				,0.1*(-ASCII(CAST(r.Q1 AS char(1)))+67)
+				+0.1*(-ASCII(CAST(r.Q2 AS char(1)))+67)
+				+0.1*(-ASCII(CAST(r.Q3 AS char(1)))+67)
+				+0.1*(-ASCII(CAST(r.Q4 AS char(1)))+67) + 1  AS koef
+			  FROM Rating r)
+SELECT id
+	, wks.avg_koef as "Средн.Коэф.Прем."
+	, wks.prem as "Размер премии"
+	, wks.zp_prem as "З\п+прем."
+FROM Divisions
+LEFT JOIN 	--xvii. Средний показатель коэффициента премии и --xviii. Общий размер премии и --xix. Общую сумму зарплат(+ премии) до индексации
+	(SELECT  Division_id
+			, avg( rk.koef ) as avg_koef
+			, sum(w.salary * (rk.koef - 1)) as prem
+			, sum(w.salary * (rk.koef)) as zp_prem
+	 FROM Workers w, Premiya rk 
+	 WHERE w.Id = rk.Id  
+	 GROUP BY division_id
+	 ) as wks  
+ON Divisions.Id = wks.Division_id;
 
+
+
+
+
+
+
+--xxi. Разницу в % между предыдущими двумя суммами(первая/вторая)
 
 
 
